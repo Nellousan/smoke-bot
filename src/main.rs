@@ -58,35 +58,38 @@ impl Handler {
 
         match command[0].as_str() {
             "add" => {
-                if command.len() < 2 {
-                    self.send(
-                        &ctx,
-                        &msg,
-                        format!("{}: Malformed command.", msg.author).as_str(),
-                    )
-                    .await;
-                    return;
+                let mut duration = Duration::from_secs(60 * 60);
+
+                if command.len() > 2 {
+                    let parsed = command[1].parse::<u64>();
+
+                    if let Err(e) = parsed {
+                        error!(?e);
+                        self.send(
+                            &ctx,
+                            &msg,
+                            format!("{}: Malformed command.", msg.author).as_str(),
+                        )
+                        .await;
+                        return;
+                    }
+
+                    let minutes = parsed.unwrap();
+                    duration = Duration::from_secs(minutes * 60);
                 }
-
-                let parsed = command[1].parse::<u64>();
-
-                if let Err(e) = parsed {
-                    error!(?e);
-                    self.send(
-                        &ctx,
-                        &msg,
-                        format!("{}: Malformed command.", msg.author).as_str(),
-                    )
-                    .await;
-                    return;
-                }
-
-                let minutes = parsed.unwrap();
-                let duration = Duration::from_secs(minutes * 60);
 
                 self.water_pending.insert(msg.author.clone(), duration);
-                self.send(&ctx, &msg, format!("{}: :ok_hand:", msg.author).as_str())
-                    .await;
+                self.send(
+                    &ctx,
+                    &msg,
+                    format!(
+                        "{}: :ok_hand: ({} minutes)",
+                        msg.author,
+                        duration.as_secs() / 60
+                    )
+                    .as_str(),
+                )
+                .await;
                 loop {
                     if self.water_pending.contains_key(&msg.author) == false {
                         return;
